@@ -36,8 +36,8 @@ class BatchSequence(object):
         return math.ceil(len(self.pipeline) / self.batch_size)
 
     def _create_pipeline(self) -> TfmIterator:
-        """ This can be overridden if more complicated pipelines are
-            required """
+        """This can be overridden if more complicated pipelines are
+        required"""
         # 1. Initialise TubRecord -> x, y transformations
         def get_x(record: TubRecord) -> Dict[str, Union[float, np.ndarray]]:
             """ Extracting x from record for training"""
@@ -51,7 +51,7 @@ class BatchSequence(object):
             # normalise image, assume other input data comes already normalised
             x3 = normalize_image(x2)
             # fill normalised image back into tuple if necessary
-            x4 = (x3, ) + x0[1:] if isinstance(x0, tuple) else x3
+            x4 = (x3,) + x0[1:] if isinstance(x0, tuple) else x3
             # convert tuple to dictionary which is understood by tf.data
             x5 = self.model.x_translate(x4)
             return x5
@@ -63,8 +63,7 @@ class BatchSequence(object):
             return y1
 
         # 2. Build pipeline using the transformations
-        pipeline = self.sequence.build_pipeline(x_transform=get_x,
-                                                y_transform=get_y)
+        pipeline = self.sequence.build_pipeline(x_transform=get_x, y_transform=get_y)
         return pipeline
 
     def create_tf_data(self) -> tf.data.Dataset:
@@ -72,27 +71,29 @@ class BatchSequence(object):
         dataset = tf.data.Dataset.from_generator(
             generator=lambda: self.pipeline,
             output_types=self.model.output_types(),
-            output_shapes=self.model.output_shapes())
+            output_shapes=self.model.output_shapes(),
+        )
         return dataset.repeat().batch(self.batch_size)
 
 
-def train(cfg: Config, tub_paths: str, model: str, model_type: str) \
-        -> tf.keras.callbacks.History:
+def train(
+    cfg: Config, tub_paths: str, model: str, model_type: str
+) -> tf.keras.callbacks.History:
     """
     Train the model
     """
     model_name, model_ext = os.path.splitext(model)
-    is_tflite = model_ext == '.tflite'
+    is_tflite = model_ext == ".tflite"
     if is_tflite:
-        model = f'{model_name}.h5'
+        model = f"{model_name}.h5"
 
     if not model_type:
         model_type = cfg.DEFAULT_MODEL_TYPE
 
-    tubs = tub_paths.split(',')
+    tubs = tub_paths.split(",")
     all_tub_paths = [os.path.expanduser(tub) for tub in tubs]
     output_path = os.path.expanduser(model)
-    train_type = 'linear' if 'linear' in model_type else model_type
+    train_type = "linear" if "linear" in model_type else model_type
 
     kl = get_model_by_type(train_type, cfg)
     if cfg.PRINT_MODEL_SUMMARY:
@@ -100,8 +101,8 @@ def train(cfg: Config, tub_paths: str, model: str, model_type: str) \
 
     dataset = TubDataset(cfg, all_tub_paths)
     training_records, validation_records = dataset.train_test_split()
-    print('Records # Training %s' % len(training_records))
-    print('Records # Validation %s' % len(validation_records))
+    print("Records # Training %s" % len(training_records))
+    print("Records # Validation %s" % len(validation_records))
 
     training_pipe = BatchSequence(kl, cfg, training_records, is_train=True)
     validation_pipe = BatchSequence(kl, cfg, validation_records, is_train=False)
@@ -111,22 +112,25 @@ def train(cfg: Config, tub_paths: str, model: str, model_type: str) \
     train_size = len(training_pipe)
     val_size = len(validation_pipe)
 
-    assert val_size > 0, "Not enough validation data, decrease the batch " \
-                         "size or add more data."
+    assert val_size > 0, (
+        "Not enough validation data, decrease the batch " "size or add more data."
+    )
 
-    history = kl.train(model_path=output_path,
-                       train_data=dataset_train,
-                       train_steps=train_size,
-                       batch_size=cfg.BATCH_SIZE,
-                       validation_data=dataset_validate,
-                       validation_steps=val_size,
-                       epochs=cfg.MAX_EPOCHS,
-                       verbose=cfg.VERBOSE_TRAIN,
-                       min_delta=cfg.MIN_DELTA,
-                       patience=cfg.EARLY_STOP_PATIENCE)
+    history = kl.train(
+        model_path=output_path,
+        train_data=dataset_train,
+        train_steps=train_size,
+        batch_size=cfg.BATCH_SIZE,
+        validation_data=dataset_validate,
+        validation_steps=val_size,
+        epochs=cfg.MAX_EPOCHS,
+        verbose=cfg.VERBOSE_TRAIN,
+        min_delta=cfg.MIN_DELTA,
+        patience=cfg.EARLY_STOP_PATIENCE,
+    )
 
     if is_tflite:
-        tf_lite_model_path = f'{os.path.splitext(output_path)[0]}.tflite'
+        tf_lite_model_path = f"{os.path.splitext(output_path)[0]}.tflite"
         keras_model_to_tflite(output_path, tf_lite_model_path)
 
     return history

@@ -27,7 +27,8 @@ TubRecordDict = TypedDict(
 
 
 class TubRecord(object):
-    def __init__(self, config: Config, base_path: str,
+    def __init__(self, config: Config,
+                 base_path: str,
                  underlying: TubRecordDict) -> None:
         self.config = config
         self.base_path = base_path
@@ -60,22 +61,23 @@ class TubRecord(object):
         else:
             _image = self._image
         return _image
+
     def __repr__(self) -> str:
         return repr(self.underlying)
 
 
 class TubDataset(object):
-    '''
+    """
     Loads the dataset, and creates a train/test split.
-    '''
+    """
 
-    def __init__(self, config: Config, tub_paths: List[str],
+    def __init__(self, config: Config,
+                 tub_paths: List[str],
                  shuffle: bool = True) -> None:
         self.config = config
         self.tub_paths = tub_paths
         self.shuffle = shuffle
-        self.tubs: List[Tub] = [Tub(tub_path, read_only=True)
-                                for tub_path in self.tub_paths]
+        self.tubs: List[Tub] = [Tub(tub_path, read_only=True) for tub_path in self.tub_paths]
         self.records: List[TubRecord] = list()
 
     def train_test_split(self) -> Tuple[List[TubRecord], List[TubRecord]]:
@@ -83,9 +85,11 @@ class TubDataset(object):
         self.records.clear()
         for tub in self.tubs:
             for underlying in tub:
-                record = TubRecord(self.config, tub.base_path,
-                                   underlying=underlying)
+                record = TubRecord(self.config, tub.base_path, underlying=underlying)
                 self.records.append(record)
 
-        return train_test_split(self.records, shuffle=self.shuffle,
-                                test_size=(1. - self.config.TRAIN_TEST_SPLIT))
+        return train_test_split(
+            self.records,
+            shuffle=self.shuffle,
+            test_size=(1.0 - self.config.TRAIN_TEST_SPLIT),
+        )
